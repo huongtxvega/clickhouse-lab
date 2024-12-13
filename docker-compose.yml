@@ -17,6 +17,49 @@ x-clickhouse-defaults: &clickhouse-defaults
       hard: 262144
 
 services:
+  minio:
+    image: minio/minio:latest
+    container_name: minio
+    env_file:
+      - .env
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-admin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - ./storage:/data
+    command: server /data --address ":9000" --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 1s
+    restart: always
+    networks:
+      - datalake-net
+
+  minio-bucket:
+    image: minio/mc 
+    container_name: minio-bucket
+    depends_on:
+      minio:
+        condition: service_healthy
+    env_file:
+      - .env
+    networks:
+      - datalake-net
+    entrypoint: >
+      /bin/sh -c "
+      /usr/bin/mc alias set myminio http://minio:9000 ${MINIO_ROOT_USER} ${MINIO_ROOT_PASSWORD};
+      /usr/bin/mc mb -p myminio/clickhouse-data;
+      /usr/bin/mc mb -p myminio/clickhouse-data/s3_disk;
+      /usr/bin/mc mb -p myminio/warehouse;
+      /usr/bin/mc anonymous set private myminio/clickhouse-data;
+      /usr/bin/mc anonymous set private myminio/warehouse;
+      exit 0;
+      "
+
   clickhouse-blue-1:
     <<: *clickhouse-defaults
     container_name: clickhouse-blue-1
@@ -33,6 +76,8 @@ services:
       - "./topo/clickhouse-blue-1/users.d:/etc/clickhouse-server/users.d/"
       - "./dict:/data/dwh/dict"
       # - "./force_restore_data:/var/lib/clickhouse/flags/force_restore_data"
+    depends_on:
+      - minio-bucket
 
   clickhouse-blue-2:
     <<: *clickhouse-defaults
@@ -87,7 +132,7 @@ services:
 
 networks:
   datalake-net:
-    external: true
+    driver: bridge
 
 volumes:
   ch-blue-1-data0:

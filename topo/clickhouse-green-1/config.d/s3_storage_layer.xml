@@ -3,9 +3,9 @@
     <disks>
       <s3_disk>
         <type>s3</type>
-        <endpoint>http://192.168.51.166:9090/clickhouse-data/s3_disk/</endpoint>
-        <access_key_id>data</access_key_id>
-        <secret_access_key>data@123</secret_access_key>
+        <endpoint>http://minio:9000/clickhouse-data/s3_disk/</endpoint>
+        <access_key_id>admin</access_key_id>
+        <secret_access_key>admin123312</secret_access_key>
         <metadata_path>/var/lib/clickhouse/disks/s3_disk/</metadata_path>
         <cache_enabled>true</cache_enabled>
         <data_cache_enabled>true</data_cache_enabled>
